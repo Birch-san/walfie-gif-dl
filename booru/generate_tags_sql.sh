@@ -18,7 +18,6 @@ gawk 'BEGIN {
 
   OFS=" ";
   idx=-1;
-  registry_tag_id=0;
 
   generic_booru_fr[0] = "GENERAL";
   generic_booru_fr[1] = "ARTIST";
@@ -30,10 +29,12 @@ fname != FILENAME {
     FS="\t";
     tag_cat = file_idx_to_tag_cat[idx];
 
-    # initialize tags_to_ids[tag_cat] as an array by indexing into it
-    tags_to_ids[tag_cat][0];
+    # initialize booru_tags_to_ids[][tag_cat] as an array by indexing into it
+    booru_tags_to_ids["danbooru_manual_walfie"][tag_cat][0];
+    booru_tags_to_ids["nobooru_manual_walfie"][tag_cat][0];
     # remove the empty string that was inserted by our accessing the nested element
-    delete tags_to_ids[tag_cat][0];
+    delete booru_tags_to_ids["danbooru_manual_walfie"][tag_cat][0];
+    delete booru_tags_to_ids["nobooru_manual_walfie"][tag_cat][0];
   } else if (idx == 4) {
     FS=" ";
     tag_cat = -1;
@@ -51,15 +52,15 @@ idx < 4 {
   fid_tag_ix = 0;
   for(i in tags) {
     tag = tags[i];
-    if (tag in tags_to_ids[tag_cat]) {
-      tag_id = tags_to_ids[tag_cat][tag];
+    if (tag in booru_tags_to_ids["danbooru_manual_walfie"][tag_cat]) {
+      tag_id = booru_tags_to_ids["danbooru_manual_walfie"][tag_cat][tag];
     } else {
-      tag_id = registry_tag_id++;
-      tags_to_ids[tag_cat][tag] = tag_id;
+      tag_id = booru_tag_id["danbooru_manual_walfie"]++;
+      booru_tags_to_ids["danbooru_manual_walfie"][tag_cat][tag] = tag_id;
       tag_ids_to_cats[tag_id] = tag_cat;
       tag_ids_to_tags[tag_id] = tag;
     }
-    fid_tag_ids[$1][tag_cat][fid_tag_ix++] = tag_id;
+    booru_fid_tag_ids["danbooru_manual_walfie"][$1][tag_cat][fid_tag_ix++] = tag_id;
   }
 }
 idx == 4 {
@@ -95,24 +96,26 @@ idx == 5 && FNR <= 71 {
   # }
 }
 END {
-  for(fid in fid_tag_ids) {
-    print "INSERT INTO tags (BOORU, FID, TAG, TAG_ID, TAG_CAT, DANB_FR) VALUES";
-    is_first = 1;
-    for(cat in fid_tag_ids[fid]) {
-      for(tag_ix in fid_tag_ids[fid][cat]) {
-        if (!is_first) {
-          printf ",\n"
+  for(booru in booru_fid_tag_ids) {
+    for(fid in booru_fid_tag_ids[booru]) {
+      print "INSERT INTO tags (BOORU, FID, TAG, TAG_ID, TAG_CAT, DANB_FR) VALUES";
+      is_first = 1;
+      for(cat in booru_fid_tag_ids[booru][fid]) {
+        for(tag_ix in booru_fid_tag_ids[booru][fid][cat]) {
+          if (!is_first) {
+            printf ",\n"
+          }
+          is_first = 0;
+          tag_id = booru_fid_tag_ids[booru][fid][cat][tag_ix];
+          tag = tag_ids_to_tags[tag_id];
+          tag_cat = tag_ids_to_cats[tag_id];
+          danbooru_fr = (tag_cat == 0 || tag_cat == 1) ? generic_booru_fr[tag_cat] : fid_copyright[fid];
+          # print(fid, tag_ids_to_cats[tag_id], tag_id, tag_ids_to_tags[tag_id]);
+          printf "  (\"%s\", %d, \"%s\", %d, \"%s\")", booru, fid, tag, tag_cat, danbooru_fr;
         }
-        is_first = 0;
-        tag_id = fid_tag_ids[fid][cat][tag_ix];
-        tag = tag_ids_to_tags[tag_id];
-        tag_cat = tag_ids_to_cats[tag_id];
-        danbooru_fr = (tag_cat == 0 || tag_cat == 1) ? generic_booru_fr[tag_cat] : fid_copyright[fid];
-        # print(fid, tag_ids_to_cats[tag_id], tag_id, tag_ids_to_tags[tag_id]);
-        printf "  (\"danbooru_manual_walfie\", %d, \"%s\", %d, \"%s\")", fid, tag, tag_cat, danbooru_fr;
       }
+      print ";";
     }
-    print ";";
   }
   # for (fid in fid_to_mapped) {
   #   print "fid", fid, "->", fid_to_mapped[fid];

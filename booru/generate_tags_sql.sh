@@ -5,7 +5,7 @@ ARTIST_TAGS="$(jq -r '.[] | [.id, .tag_string_artist] | @tsv' processed.json)"
 COPYRIGHT_TAGS="$(jq -r '.[] | [.id, .tag_string_copyright] | @tsv' processed.json)"
 CHARACTER_TAGS="$(jq -r '.[] | [.id, .tag_string_character] | @tsv' processed.json)"
 
-awk -F'\t' 'BEGIN {
+awk 'BEGIN {
   # GENERAL = TAG_CAT 0
   file_idx_to_tag_cat[0] = 0;
   # ARTIST = TAG_CAT 1
@@ -26,17 +26,24 @@ awk -F'\t' 'BEGIN {
 fname != FILENAME {
   fname = FILENAME;
   idx++;
-  tag_cat = file_idx_to_tag_cat[idx];
-  # initialize tags_to_ids[tag_cat] as an array by indexing into it
-  tags_to_ids[tag_cat][0];
-  # remove the empty string that was inserted by our accessing the nested element
-  delete tags_to_ids[tag_cat][0];
+  if (idx < 4) {
+    FS="\t";
+    tag_cat = file_idx_to_tag_cat[idx];
+
+    # initialize tags_to_ids[tag_cat] as an array by indexing into it
+    tags_to_ids[tag_cat][0];
+    # remove the empty string that was inserted by our accessing the nested element
+    delete tags_to_ids[tag_cat][0];
+  } else {
+    FS=" ";
+    tag_cat = -1;
+  }
 }
 file_idx_to_tag_cat[idx] == 3 {
   split($2, tags, " ");
   fid_copyright[$1] = tags[1];
 }
-{
+idx < 4 {
   split($2, tags, " ");
   fid_tag_ix = 0;
   for(i in tags) {
@@ -50,6 +57,14 @@ file_idx_to_tag_cat[idx] == 3 {
       tag_ids_to_tags[tag_id] = tag;
     }
     fid_tag_ids[$1][tag_cat][fid_tag_ix++] = tag_id;
+  }
+}
+idx == 4 {
+  if ($2) {
+    split($1, filename_parts, ".");
+    fid = filename_parts[1];
+    fid_to_mapped[fid] = $2;
+    mapped_to_fid[$2] = fid;
   }
 }
 END {
@@ -72,4 +87,10 @@ END {
     }
     print ";";
   }
-}' <(echo "$GENERAL_TAGS") <(echo "$ARTIST_TAGS") <(echo "$COPYRIGHT_TAGS") <(echo "$CHARACTER_TAGS") #> manual_walfie_booru_tags.sql
+  # for (fid in fid_to_mapped) {
+  #   print "fid", fid, "->", fid_to_mapped[fid];
+  # }
+  # for (mapped in mapped_to_fid) {
+  #   print "mapped", mapped, "->", mapped_to_fid[mapped];
+  # }
+}' <(echo "$GENERAL_TAGS") <(echo "$ARTIST_TAGS") <(echo "$COPYRIGHT_TAGS") <(echo "$CHARACTER_TAGS") <(cat mappings.txt) #> manual_walfie_booru_tags.sql

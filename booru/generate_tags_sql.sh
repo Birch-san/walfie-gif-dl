@@ -47,20 +47,23 @@ idx < 4 && file_idx_to_tag_cat[idx] == 3 {
   split($2, tags, " ");
   fid_copyright[$1] = tags[1];
 }
+function register_tag(tag, booru, cat) {
+  if (tag in booru_tags_to_ids[booru][cat]) {
+    tag_id = booru_tags_to_ids[booru][cat][tag];
+  } else {
+    tag_id = booru_tag_id[booru]++;
+    booru_tags_to_ids[booru][cat][tag] = tag_id;
+    tag_ids_to_cats[tag_id] = cat;
+    tag_ids_to_tags[tag_id] = tag;
+  }
+  booru_fid_tag_ids[booru][$1][cat][fid_tag_ix++] = tag_id;
+}
 idx < 4 {
   split($2, tags, " ");
   fid_tag_ix = 0;
   for(i in tags) {
     tag = tags[i];
-    if (tag in booru_tags_to_ids["danbooru_manual_walfie"][tag_cat]) {
-      tag_id = booru_tags_to_ids["danbooru_manual_walfie"][tag_cat][tag];
-    } else {
-      tag_id = booru_tag_id["danbooru_manual_walfie"]++;
-      booru_tags_to_ids["danbooru_manual_walfie"][tag_cat][tag] = tag_id;
-      tag_ids_to_cats[tag_id] = tag_cat;
-      tag_ids_to_tags[tag_id] = tag;
-    }
-    booru_fid_tag_ids["danbooru_manual_walfie"][$1][tag_cat][fid_tag_ix++] = tag_id;
+    register_tag(tag, "danbooru_manual_walfie", tag_cat);
   }
 }
 idx == 4 {
@@ -75,10 +78,14 @@ idx == 5 && FNR <= 71 {
   match($0, /^([^[]*)/, filename_match);
   filename = substr($0, filename_match[1, "start"], filename_match[1, "length"]);
 
-  # if (filename in mapped_to_fid) {
-  #   
-  # }
-  # 
+  if (filename in mapped_to_fid) {
+    booru = "danbooru_manual_walfie";
+    fid = mapped_to_fid[filename];
+  } else {
+    booru = "nobooru_manual_walfie";
+    fid = filename;
+  }
+  
   # match($0, /\[GENERAL_PICKN:]([^[]*)/, pickn_match);
   # pickn_str = substr($0, pickn_match[1, "start"], pickn_match[1, "length"]);
   # split(pickn_str, pickn_arr, "\t");
@@ -86,7 +93,7 @@ idx == 5 && FNR <= 71 {
   #   picked = pickn_arr[i];
   #   counts[picked]++;
   # }
-  #
+  # 
   # match($0, /\[GENERAL_CRUCIAL:]([^[]*)/, cru_match);
   # cru_str = substr($0, cru_match[1, "start"], cru_match[1, "length"]);
   # split(cru_str, cru_arr, "\t");

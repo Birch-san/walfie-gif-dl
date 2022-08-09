@@ -5,7 +5,7 @@ ARTIST_TAGS="$(jq -r '.[] | [.id, .tag_string_artist] | @tsv' processed.json)"
 COPYRIGHT_TAGS="$(jq -r '.[] | [.id, .tag_string_copyright] | @tsv' processed.json)"
 CHARACTER_TAGS="$(jq -r '.[] | [.id, .tag_string_character] | @tsv' processed.json)"
 
-awk 'BEGIN {
+gawk 'BEGIN {
   # GENERAL = TAG_CAT 0
   file_idx_to_tag_cat[0] = 0;
   # ARTIST = TAG_CAT 1
@@ -34,12 +34,15 @@ fname != FILENAME {
     tags_to_ids[tag_cat][0];
     # remove the empty string that was inserted by our accessing the nested element
     delete tags_to_ids[tag_cat][0];
-  } else {
+  } else if (idx == 4) {
     FS=" ";
+    tag_cat = -1;
+  } else {
+    FS="\t";
     tag_cat = -1;
   }
 }
-file_idx_to_tag_cat[idx] == 3 {
+idx < 4 && file_idx_to_tag_cat[idx] == 3 {
   split($2, tags, " ");
   fid_copyright[$1] = tags[1];
 }
@@ -67,6 +70,30 @@ idx == 4 {
     mapped_to_fid[$2] = fid;
   }
 }
+idx == 5 && FNR <= 71 {
+  match($0, /^([^[]*)/, filename_match);
+  filename = substr($0, filename_match[1, "start"], filename_match[1, "length"]);
+
+  # if (filename in mapped_to_fid) {
+  #   
+  # }
+  # 
+  # match($0, /\[GENERAL_PICKN:]([^[]*)/, pickn_match);
+  # pickn_str = substr($0, pickn_match[1, "start"], pickn_match[1, "length"]);
+  # split(pickn_str, pickn_arr, "\t");
+  # for(i in pickn_arr) {
+  #   picked = pickn_arr[i];
+  #   counts[picked]++;
+  # }
+  #
+  # match($0, /\[GENERAL_CRUCIAL:]([^[]*)/, cru_match);
+  # cru_str = substr($0, cru_match[1, "start"], cru_match[1, "length"]);
+  # split(cru_str, cru_arr, "\t");
+  # for(i in cru_arr) {
+  #   picked = cru_arr[i];
+  #   counts[picked]++;
+  # }
+}
 END {
   for(fid in fid_tag_ids) {
     print "INSERT INTO tags (BOORU, FID, TAG, TAG_ID, TAG_CAT, DANB_FR) VALUES";
@@ -93,4 +120,4 @@ END {
   # for (mapped in mapped_to_fid) {
   #   print "mapped", mapped, "->", mapped_to_fid[mapped];
   # }
-}' <(echo "$GENERAL_TAGS") <(echo "$ARTIST_TAGS") <(echo "$COPYRIGHT_TAGS") <(echo "$CHARACTER_TAGS") <(cat mappings.txt) #> manual_walfie_booru_tags.sql
+}' <(echo "$GENERAL_TAGS") <(echo "$ARTIST_TAGS") <(echo "$COPYRIGHT_TAGS") <(echo "$CHARACTER_TAGS") <(cat mappings.txt) <(cat ../out/tags.tsv) #> manual_walfie_booru_tags.sql

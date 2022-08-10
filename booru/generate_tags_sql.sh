@@ -21,6 +21,21 @@ gawk 'BEGIN {
 
   generic_booru_fr[0] = "GENERAL";
   generic_booru_fr[1] = "ARTIST";
+
+  boorus["danbooru_manual_walfie"] = "";
+  boorus["nobooru_manual_walfie"] = "";
+  tag_cats[0] = "";
+  tag_cats[1] = "";
+  tag_cats[3] = "";
+  tag_cats[4] = "";
+  for (booru in boorus) {
+    for (cat in tag_cats) {
+      # initialize booru_tags_to_ids[booru][tag_cat] as an array by indexing into it
+      booru_tags_to_ids[booru][cat][0];
+      # remove the empty string that was inserted by our accessing the nested element
+      delete booru_tags_to_ids[booru][cat][0];
+    }
+  }
 }
 fname != FILENAME {
   fname = FILENAME;
@@ -28,13 +43,6 @@ fname != FILENAME {
   if (idx < 4) {
     FS="\t";
     tag_cat = file_idx_to_tag_cat[idx];
-
-    # initialize booru_tags_to_ids[][tag_cat] as an array by indexing into it
-    booru_tags_to_ids["danbooru_manual_walfie"][tag_cat][0];
-    booru_tags_to_ids["nobooru_manual_walfie"][tag_cat][0];
-    # remove the empty string that was inserted by our accessing the nested element
-    delete booru_tags_to_ids["danbooru_manual_walfie"][tag_cat][0];
-    delete booru_tags_to_ids["nobooru_manual_walfie"][tag_cat][0];
   } else if (idx == 4) {
     FS=" ";
     tag_cat = -1;
@@ -45,9 +53,9 @@ fname != FILENAME {
 }
 idx < 4 && file_idx_to_tag_cat[idx] == 3 {
   split($2, tags, " ");
-  fid_copyright[$1] = tags[1];
+  booru_fid_copyright["danbooru_manual_walfie"][$1] = tags[1];
 }
-function register_tag(tag, booru, cat) {
+function register_tag(tag, booru, fid, cat) {
   if (tag in booru_tags_to_ids[booru][cat]) {
     tag_id = booru_tags_to_ids[booru][cat][tag];
   } else {
@@ -56,14 +64,14 @@ function register_tag(tag, booru, cat) {
     tag_ids_to_cats[tag_id] = cat;
     tag_ids_to_tags[tag_id] = tag;
   }
-  booru_fid_tag_ids[booru][$1][cat][fid_tag_ix++] = tag_id;
+  booru_fid_tag_ids[booru][fid][cat][fid_tag_ix++] = tag_id;
 }
 idx < 4 {
   split($2, tags, " ");
   fid_tag_ix = 0;
   for(i in tags) {
     tag = tags[i];
-    register_tag(tag, "danbooru_manual_walfie", tag_cat);
+    register_tag(tag, "danbooru_manual_walfie", $1, tag_cat);
   }
 }
 idx == 4 {
@@ -83,24 +91,44 @@ idx == 5 && FNR <= 71 {
     fid = mapped_to_fid[filename];
   } else {
     booru = "nobooru_manual_walfie";
-    fid = filename;
+    fid = nobooru_fid++;
+    booru_fid_copyright["nobooru_manual_walfie"][fid] = "hololive+nijisanji";
   }
   
-  # match($0, /\[GENERAL_PICKN:]([^[]*)/, pickn_match);
-  # pickn_str = substr($0, pickn_match[1, "start"], pickn_match[1, "length"]);
-  # split(pickn_str, pickn_arr, "\t");
-  # for(i in pickn_arr) {
-  #   picked = pickn_arr[i];
-  #   counts[picked]++;
-  # }
-  # 
-  # match($0, /\[GENERAL_CRUCIAL:]([^[]*)/, cru_match);
-  # cru_str = substr($0, cru_match[1, "start"], cru_match[1, "length"]);
-  # split(cru_str, cru_arr, "\t");
-  # for(i in cru_arr) {
-  #   picked = cru_arr[i];
-  #   counts[picked]++;
-  # }
+  tag_cat = 0;
+  fid_tag_ix = filename in mapped_to_fid ? length(booru_fid_tag_ids[booru][fid][tag_cat]) : 0;
+
+  match($0, /\[GENERAL_PICKN:]([^[]*)/, pickn_match);
+  pickn_str = substr($0, pickn_match[1, "start"], pickn_match[1, "length"]);
+  split(pickn_str, pickn_arr, "\t");
+  for(i in pickn_arr) {
+    tag = pickn_arr[i];
+    register_tag(tag, booru, fid, tag_cat);
+  }
+  
+  match($0, /\[GENERAL_CRUCIAL:]([^[]*)/, cru_match);
+  cru_str = substr($0, cru_match[1, "start"], cru_match[1, "length"]);
+  split(cru_str, cru_arr, "\t");
+  for(i in cru_arr) {
+    tag = cru_arr[i];
+    register_tag(tag, booru, fid, tag_cat);
+  }
+
+  tag_cat = 4;
+  fid_tag_ix = filename in mapped_to_fid ? length(booru_fid_tag_ids[booru][fid][tag_cat]) : 0;
+
+  match($0, /\[PROPER_NOUNS:]([^[]*)/, pnoun_match);
+  pnoun_str = substr($0, pnoun_match[1, "start"], pnoun_match[1, "length"]);
+  split(pnoun_str, pnoun_arr, "\t");
+  for(i in pnoun_arr) {
+    tag = pnoun_arr[i];
+    if (tag == "walfie_(style)") continue;
+    register_tag(tag, booru, fid, tag_cat);
+  }
+
+  tag_cat = 1;
+  fid_tag_ix = filename in mapped_to_fid ? length(booru_fid_tag_ids[booru][fid][tag_cat]) : 0;
+  register_tag("walfie", booru, fid, tag_cat);
 }
 END {
   for(booru in booru_fid_tag_ids) {
@@ -116,9 +144,9 @@ END {
           tag_id = booru_fid_tag_ids[booru][fid][cat][tag_ix];
           tag = tag_ids_to_tags[tag_id];
           tag_cat = tag_ids_to_cats[tag_id];
-          danbooru_fr = (tag_cat == 0 || tag_cat == 1) ? generic_booru_fr[tag_cat] : fid_copyright[fid];
+          danbooru_fr = (tag_cat == 0 || tag_cat == 1) ? generic_booru_fr[tag_cat] : booru_fid_copyright[booru][fid];
           # print(fid, tag_ids_to_cats[tag_id], tag_id, tag_ids_to_tags[tag_id]);
-          printf "  (\"%s\", %d, \"%s\", %d, \"%s\")", booru, fid, tag, tag_cat, danbooru_fr;
+          printf "  (\"%s\", %d, \"%s\", %d, %d, \"%s\")", booru, fid, tag, tag_id, tag_cat, danbooru_fr;
         }
       }
       print ";";

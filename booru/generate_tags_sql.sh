@@ -5,7 +5,7 @@ ARTIST_TAGS="$(jq -r '.[] | [.id, .tag_string_artist] | @tsv' processed.json)"
 COPYRIGHT_TAGS="$(jq -r '.[] | [.id, .tag_string_copyright] | @tsv' processed.json)"
 CHARACTER_TAGS="$(jq -r '.[] | [.id, .tag_string_character] | @tsv' processed.json)"
 
-gawk 'BEGIN {
+gawk -F'\t' 'BEGIN {
   # GENERAL = TAG_CAT 0
   file_idx_to_tag_cat[0] = 0;
   # ARTIST = TAG_CAT 1
@@ -41,13 +41,10 @@ fname != FILENAME {
   fname = FILENAME;
   idx++;
   if (idx < 4) {
-    FS="\t";
     tag_cat = file_idx_to_tag_cat[idx];
   } else if (idx == 4) {
-    FS=" ";
     tag_cat = -1;
   } else {
-    FS="\t";
     tag_cat = -1;
   }
 }

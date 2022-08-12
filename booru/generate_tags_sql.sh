@@ -75,12 +75,20 @@ idx < 4 {
   }
 }
 idx == 4 {
+  split($1, filename_parts, ".");
+  fid = filename_parts[1];
   if ($2) {
-    split($1, filename_parts, ".");
-    fid = filename_parts[1];
-    fid_to_mapped[fid] = $2;
+    booru_fid_to_mapped["danbooru_manual_walfie"][fid] = $2;
     mapped_to_fid[$2] = fid;
+    split($2, mapped_filename_parts, ".");
+    preferred_extension = mapped_filename_parts[2];
+    preferred_filename = $2;
+  } else {
+    preferred_filename = $1;
+    preferred_extension = filename_parts[2];
   }
+  booru_fid_to_preferred_filename["danbooru_manual_walfie"][fid] = preferred_filename;
+  booru_fid_to_preferred_extension["danbooru_manual_walfie"][fid] = preferred_extension;
 }
 idx == 5 && FNR <= 71 {
   match($0, /^([^[]*)/, filename_match);
@@ -92,7 +100,11 @@ idx == 5 && FNR <= 71 {
   } else {
     booru = "nobooru_manual_walfie";
     fid = nobooru_fid++;
+    split($1, filename_parts, ".");
+    extension = filename_parts[2];
     booru_fid_copyright["nobooru_manual_walfie"][fid] = "hololive+nijisanji";
+    booru_fid_to_preferred_filename["nobooru_manual_walfie"][fid] = filename;
+    booru_fid_to_preferred_extension["nobooru_manual_walfie"][fid] = extension;
   }
   
   tag_cat = 0;
@@ -130,8 +142,25 @@ idx == 5 && FNR <= 71 {
   fid_tag_ix = filename in mapped_to_fid ? length(booru_fid_tag_ids[booru][fid][tag_cat]) : 0;
   register_tag("walfie", booru, fid, tag_cat);
 }
+idx == 6 {
+  if ($1 in booru_fid_to_mapped["danbooru_manual_walfie"]) {
+    extension = fid_to_preferred_extension[$1];
+  }
+}
 END {
   for(booru in booru_fid_tag_ids) {
+    print "INSERT INTO files (BOORU, FID, FILE_NAME, TORR_MD5, ORIG_EXT, ORIG_MD5, FILE_SIZE, IMG_SIZE_TORR, JQ, TORR_PATH, TAGS_COPYR, TAGS_CHAR, TAGS_ARTIST) VALUES";
+    first_file = 1;
+    for(fid in booru_fid_tag_ids[booru]) {
+      if (!first_file) {
+        printf ",\n"
+      }
+      first_file = 0;
+      filename = booru_fid_to_preferred_filename[booru][fid];
+      extension = booru_fid_to_preferred_extension[booru][fid];
+      printf "  (\"%s\", %d, \"%s\", \"%s\", \"%s\", \"%s\", %d, \"%dx%d\", 100, \"walfie\", \"hololive+nijisanji\", \"various\", \"walfie\")", booru, fid, booru_fid_to_preferred_filename[booru][fid], "?", booru_fid_to_preferred_filename[booru][fid], "?", "?", "?", "?";
+    }
+    print ";";
     for(fid in booru_fid_tag_ids[booru]) {
       print "INSERT INTO tags (BOORU, FID, TAG, TAG_ID, TAG_CAT, DANB_FR) VALUES";
       is_first = 1;
@@ -152,10 +181,4 @@ END {
       print ";";
     }
   }
-  # for (fid in fid_to_mapped) {
-  #   print "fid", fid, "->", fid_to_mapped[fid];
-  # }
-  # for (mapped in mapped_to_fid) {
-  #   print "mapped", mapped, "->", mapped_to_fid[mapped];
-  # }
-}' <(echo "$GENERAL_TAGS") <(echo "$ARTIST_TAGS") <(echo "$COPYRIGHT_TAGS") <(echo "$CHARACTER_TAGS") <(cat mappings.txt) <(cat ../out/tags.tsv) #> manual_walfie_booru_tags.sql
+}' <(echo "$GENERAL_TAGS") <(echo "$ARTIST_TAGS") <(echo "$COPYRIGHT_TAGS") <(echo "$CHARACTER_TAGS") <(cat mappings.txt) <(cat ../out/tags.tsv) <(jq -r '.[] | [.id, .md5, .file_size, .image_width, .image_height] | @tsv' ./processed.json) #> manual_walfie_booru_tags.sql

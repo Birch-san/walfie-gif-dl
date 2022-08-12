@@ -100,7 +100,8 @@ idx == 5 && FNR <= 71 {
   } else {
     booru = "nobooru_manual_walfie";
     fid = nobooru_fid++;
-    split($1, filename_parts, ".");
+    nobooru_filename_to_fid[filename] = fid;
+    split(filename, filename_parts, ".");
     extension = filename_parts[2];
     booru_fid_copyright["nobooru_manual_walfie"][fid] = "hololive+nijisanji";
     booru_fid_to_preferred_filename["nobooru_manual_walfie"][fid] = filename;
@@ -143,8 +144,29 @@ idx == 5 && FNR <= 71 {
   register_tag("walfie", booru, fid, tag_cat);
 }
 idx == 6 {
-  if ($1 in booru_fid_to_mapped["danbooru_manual_walfie"]) {
-    extension = fid_to_preferred_extension[$1];
+  if ($1 in mapped_to_fid) {
+    booru = "danbooru_manual_walfie";
+    fid = mapped_to_fid[$1];
+  } else if ($1 in nobooru_filename_to_fid) {
+    booru = "nobooru_manual_walfie";
+    fid = nobooru_filename_to_fid[$1];
+  } else {
+    next
+  }
+  booru_fid_frame_count[booru][fid] = $2;
+  booru_fid_width[booru][fid] = $3;
+  booru_fid_height[booru][fid] = $4;
+  booru_fid_filesize[booru][fid] = $5;
+  booru_fid_md5[booru][fid] = $6;
+}
+idx == 7 {
+  fid = $1;
+  booru = "danbooru_manual_walfie";
+  if (!($1 in mapped_to_fid)) {
+    booru_fid_md5[booru][fid] = $2;
+    booru_fid_filesize[booru][fid] = $3;
+    booru_fid_width[booru][fid] = $4;
+    booru_fid_height[booru][fid] = $5;
   }
 }
 END {
@@ -158,7 +180,11 @@ END {
       first_file = 0;
       filename = booru_fid_to_preferred_filename[booru][fid];
       extension = booru_fid_to_preferred_extension[booru][fid];
-      printf "  (\"%s\", %d, \"%s\", \"%s\", \"%s\", \"%s\", %d, \"%dx%d\", 100, \"walfie\", \"hololive+nijisanji\", \"various\", \"walfie\")", booru, fid, booru_fid_to_preferred_filename[booru][fid], "?", booru_fid_to_preferred_filename[booru][fid], "?", "?", "?", "?";
+      md5 = booru_fid_md5[booru][fid];
+      file_size = booru_fid_filesize[booru][fid];
+      width = booru_fid_width[booru][fid];
+      height = booru_fid_height[booru][fid];
+      printf "  (\"%s\", %d, \"%s\", \"%s\", \"%s\", \"%s\", %d, \"%dx%d\", 100, \"walfie\", \"hololive+nijisanji\", \"various\", \"walfie\")", booru, fid, filename, md5, extension, md5, file_size, width, height;
     }
     print ";";
     for(fid in booru_fid_tag_ids[booru]) {
@@ -181,4 +207,4 @@ END {
       print ";";
     }
   }
-}' <(echo "$GENERAL_TAGS") <(echo "$ARTIST_TAGS") <(echo "$COPYRIGHT_TAGS") <(echo "$CHARACTER_TAGS") <(cat mappings.txt) <(cat ../out/tags.tsv) <(jq -r '.[] | [.id, .md5, .file_size, .image_width, .image_height] | @tsv' ./processed.json) #> manual_walfie_booru_tags.sql
+}' <(echo "$GENERAL_TAGS") <(echo "$ARTIST_TAGS") <(echo "$COPYRIGHT_TAGS") <(echo "$CHARACTER_TAGS") <(cat mappings.txt) <(cat ../out/tags.tsv) <(cat ../out/gif_stats.tsv) <(jq -r '.[] | [.id, .md5, .file_size, .image_width, .image_height] | @tsv' ./processed.json) #> manual_walfie_booru_tags.sql

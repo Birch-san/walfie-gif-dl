@@ -140,6 +140,9 @@ idx == 5 && FNR <= 71 {
   fid_tag_ix = filename in mapped_to_fid ? length(booru_fid_tag_ids[booru][fid][tag_cat]) : 0;
   register_tag("walfie", booru, fid, tag_cat);
 }
+function max(x, y) {
+  return x > y ? x : y;
+}
 idx == 6 {
   if ($1 in mapped_to_fid) {
     booru = "danbooru_manual_walfie";
@@ -151,6 +154,7 @@ idx == 6 {
     next
   }
   booru_fid_frame_count[booru][fid] = $2;
+  max_frame_count = max(max_frame_count, $2);
   booru_fid_width[booru][fid] = $3;
   booru_fid_height[booru][fid] = $4;
   booru_fid_filesize[booru][fid] = $5;
@@ -197,11 +201,51 @@ END {
           tag = tag_ids_to_tags[tag_id];
           tag_cat = tag_ids_to_cats[tag_id];
           danbooru_fr = (tag_cat == 0 || tag_cat == 1) ? generic_booru_fr[tag_cat] : booru_fid_copyright[booru][fid];
-          # print(fid, tag_ids_to_cats[tag_id], tag_id, tag_ids_to_tags[tag_id]);
           printf "  (\"%s\", %d, \"%s\", %d, %d, \"%s\")", booru, fid, tag, tag_id, tag_cat, danbooru_fr;
         }
       }
       print ";";
     }
   }
+  printf "CREATE TEMP TABLE cnt as WITH RECURSIVE\n\
+  cnt_cte(x) AS (\n\
+     SELECT 0\n\
+     UNION ALL\n\
+     SELECT x+1 FROM cnt_cte\n\
+      LIMIT %d\n\
+  )\n\
+SELECT x FROM cnt_cte;\n\
+CREATE TEMP TABLE frame_counts (\n\
+  BOORU text not null,\n\
+  FID integer not null,\n\
+  FRAMES integer not null,\n\
+  primary key(BOORU, FID)\n\
+);\n", max_frame_count;
+  for(booru in booru_fid_tag_ids) {
+    print "INSERT INTO frame_counts (BOORU, FID, FRAMES) VALUES";
+    first_file = 1;
+    for(fid in booru_fid_tag_ids[booru]) {
+      frame_count = booru_fid_frame_count[booru][fid];
+      if (frame_count == 0) {
+        continue;
+      }
+      if (!first_file) {
+        printf ",\n"
+      }
+      first_file = 0;
+      printf "  (\"%s\", %d, %d)", booru, fid, frame_count;
+    }
+    print ";";
+  }
+  print "CREATE TABLE frames (\n\
+  BOORU text not null,\n\
+  FID integer not null,\n\
+  FRAME integer not null,\n\
+  primary key(BOORU, FID, FRAME)\n\
+);\n\
+INSERT INTO frames (BOORU, FID, FRAME)\n\
+SELECT f.BOORU, f.FID, c.x AS FRAME\n\
+FROM frame_counts f\n\
+INNER JOIN cnt c\n\
+  ON c.x < f.FRAMES;"
 }' <(echo "$GENERAL_TAGS") <(echo "$ARTIST_TAGS") <(echo "$COPYRIGHT_TAGS") <(echo "$CHARACTER_TAGS") <(cat mappings.txt) <(cat ../out/tags.tsv) <(cat ../out/gif_stats.tsv) <(jq -r '.[] | [.id, .md5, .file_size, .image_width, .image_height] | @tsv' ./processed.json) #> manual_walfie_booru_tags.sql

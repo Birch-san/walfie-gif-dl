@@ -1,2 +1,7 @@
 geckodriver.log
 .DS_Store
+/venv/
+/bin/
+/html/
+/gifs/
+/categories.md

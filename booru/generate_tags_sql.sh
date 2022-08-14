@@ -61,11 +61,10 @@ function register_tag(tag, booru, fid, cat) {
     tag_ids_to_cats[tag_id] = cat;
     tag_ids_to_tags[tag_id] = tag;
   }
-  booru_fid_tag_ids[booru][fid][cat][fid_tag_ix++] = tag_id;
+  booru_fid_tag_ids[booru][fid][cat][tag_id] = 1;
 }
 idx < 4 {
   split($2, tags, " ");
-  fid_tag_ix = 0;
   for(i in tags) {
     tag = tags[i];
     register_tag(tag, "danbooru_manual_walfie", $1, tag_cat);
@@ -106,7 +105,6 @@ idx == 5 && FNR <= 71 {
   }
   
   tag_cat = 0;
-  fid_tag_ix = filename in mapped_to_fid ? length(booru_fid_tag_ids[booru][fid][tag_cat]) : 0;
 
   match($0, /\[GENERAL_PICKN:]([^[]*)/, pickn_match);
   pickn_str = substr($0, pickn_match[1, "start"], pickn_match[1, "length"]);
@@ -125,7 +123,6 @@ idx == 5 && FNR <= 71 {
   }
 
   tag_cat = 4;
-  fid_tag_ix = filename in mapped_to_fid ? length(booru_fid_tag_ids[booru][fid][tag_cat]) : 0;
 
   match($0, /\[PROPER_NOUNS:]([^[]*)/, pnoun_match);
   pnoun_str = substr($0, pnoun_match[1, "start"], pnoun_match[1, "length"]);
@@ -137,7 +134,6 @@ idx == 5 && FNR <= 71 {
   }
 
   tag_cat = 1;
-  fid_tag_ix = filename in mapped_to_fid ? length(booru_fid_tag_ids[booru][fid][tag_cat]) : 0;
   register_tag("walfie", booru, fid, tag_cat);
 }
 function max(x, y) {
@@ -192,12 +188,11 @@ END {
       print "INSERT INTO tags (BOORU, FID, TAG, TAG_ID, TAG_CAT, DANB_FR) VALUES";
       is_first = 1;
       for(cat in booru_fid_tag_ids[booru][fid]) {
-        for(tag_ix in booru_fid_tag_ids[booru][fid][cat]) {
+        for(tag_id in booru_fid_tag_ids[booru][fid][cat]) {
           if (!is_first) {
             printf ",\n"
           }
           is_first = 0;
-          tag_id = booru_fid_tag_ids[booru][fid][cat][tag_ix];
           tag = tag_ids_to_tags[tag_id];
           tag_cat = tag_ids_to_cats[tag_id];
           danbooru_fr = (tag_cat == 0 || tag_cat == 1) ? generic_booru_fr[tag_cat] : booru_fid_copyright[booru][fid];

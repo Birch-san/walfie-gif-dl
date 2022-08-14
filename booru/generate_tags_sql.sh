@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# need to multiply by gif frames
+# ./generate_tags_sql.sh > walfie.sql
 GENERAL_TAGS="$(jq -r '.[] | [.id, .tag_string_general] | @tsv' processed.json)"
 ARTIST_TAGS="$(jq -r '.[] | [.id, .tag_string_artist] | @tsv' processed.json)"
 COPYRIGHT_TAGS="$(jq -r '.[] | [.id, .tag_string_copyright] | @tsv' processed.json)"
@@ -168,7 +168,7 @@ idx == 7 {
 }
 END {
   for(booru in booru_fid_tag_ids) {
-    print "INSERT INTO files (BOORU, FID, FILE_NAME, TORR_MD5, ORIG_EXT, ORIG_MD5, FILE_SIZE, IMG_SIZE_TORR, JQ, TORR_PATH, TAGS_COPYR, TAGS_CHAR, TAGS_ARTIST) VALUES";
+    print "insert into files (booru, fid, shard, file_name, torr_md5, orig_ext, orig_md5, file_size, img_size_torr, jq, torr_path, tags_copyr, tags_char, tags_artist) values";
     first_file = 1;
     for(fid in booru_fid_tag_ids[booru]) {
       if (!first_file) {
@@ -181,11 +181,11 @@ END {
       file_size = booru_fid_filesize[booru][fid];
       width = booru_fid_width[booru][fid];
       height = booru_fid_height[booru][fid];
-      printf "  (\"%s\", %d, \"%s\", \"%s\", \"%s\", \"%s\", %d, \"%dx%d\", 100, \"walfie\", \"hololive+nijisanji\", \"various\", \"walfie\")", booru, fid, filename, md5, extension, md5, file_size, width, height;
+      printf "  (\"%s\", %d, \"manual_walfie_0\", \"%s\", \"%s\", \"%s\", \"%s\", %d, \"%dx%d\", 100, \"walfie\", \"hololive+nijisanji\", \"various\", \"walfie\")", booru, fid, filename, md5, extension, md5, file_size, width, height;
     }
     print ";";
     for(fid in booru_fid_tag_ids[booru]) {
-      print "INSERT INTO tags (BOORU, FID, TAG, TAG_ID, TAG_CAT, DANB_FR) VALUES";
+      print "insert into tags (booru, fid, tag, tag_id, tag_cat, danb_fr) values";
       is_first = 1;
       for(cat in booru_fid_tag_ids[booru][fid]) {
         for(tag_id in booru_fid_tag_ids[booru][fid][cat]) {
@@ -202,22 +202,22 @@ END {
       print ";";
     }
   }
-  printf "CREATE TEMP TABLE cnt as WITH RECURSIVE\n\
-  cnt_cte(x) AS (\n\
-     SELECT 0\n\
-     UNION ALL\n\
-     SELECT x+1 FROM cnt_cte\n\
-      LIMIT %d\n\
+  printf "create temp table cnt as with recursive\n\
+  cnt_cte(x) as (\n\
+     select 0\n\
+     union all\n\
+     select x+1 from cnt_cte\n\
+      limit %d\n\
   )\n\
-SELECT x FROM cnt_cte;\n\
-CREATE TEMP TABLE frame_counts (\n\
-  BOORU text not null,\n\
-  FID integer not null,\n\
-  FRAMES integer not null,\n\
-  primary key(BOORU, FID)\n\
+select x from cnt_cte;\n\
+create temp table frame_counts (\n\
+  booru text not null,\n\
+  fid integer not null,\n\
+  frames integer not null,\n\
+  primary key(booru, fid)\n\
 );\n", max_frame_count;
   for(booru in booru_fid_tag_ids) {
-    print "INSERT INTO frame_counts (BOORU, FID, FRAMES) VALUES";
+    print "insert into frame_counts (booru, fid, frames) values";
     first_file = 1;
     for(fid in booru_fid_tag_ids[booru]) {
       frame_count = booru_fid_frame_count[booru][fid];
@@ -232,15 +232,15 @@ CREATE TEMP TABLE frame_counts (\n\
     }
     print ";";
   }
-  print "CREATE TABLE frames (\n\
-  BOORU text not null,\n\
-  FID integer not null,\n\
-  FRAME integer not null,\n\
-  primary key(BOORU, FID, FRAME)\n\
+  print "create table frames (\n\
+  booru text not null,\n\
+  fid integer not null,\n\
+  frame integer not null,\n\
+  primary key(booru, fid, frame)\n\
 );\n\
-INSERT INTO frames (BOORU, FID, FRAME)\n\
-SELECT f.BOORU, f.FID, c.x AS FRAME\n\
-FROM frame_counts f\n\
-INNER JOIN cnt c\n\
-  ON c.x < f.FRAMES;"
+insert into frames (booru, fid, frame)\n\
+select f.booru, f.fid, c.x as frame\n\
+from frame_counts f\n\
+inner join cnt c\n\
+  on c.x < f.frames;"
 }' <(echo "$GENERAL_TAGS") <(echo "$ARTIST_TAGS") <(echo "$COPYRIGHT_TAGS") <(echo "$CHARACTER_TAGS") <(cat mappings.txt) <(cat ../out/tags.tsv) <(cat ../out/gif_stats.tsv) <(jq -r '.[] | [.id, .md5, .file_size, .image_width, .image_height] | @tsv' ./processed.json) #> manual_walfie_booru_tags.sql

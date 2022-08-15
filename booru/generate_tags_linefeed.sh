@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ./generate_tags_linefeed.sh > walfie.txt
+# ./generate_tags_linefeed.sh
 GENERAL_TAGS="$(jq -r '.[] | [.id, .tag_string_general] | @tsv' processed.json)"
 ARTIST_TAGS="$(jq -r '.[] | [.id, .tag_string_artist] | @tsv' processed.json)"
 COPYRIGHT_TAGS="$(jq -r '.[] | [.id, .tag_string_copyright] | @tsv' processed.json)"
@@ -58,13 +58,25 @@ idx < 4 && file_idx_to_tag_cat[idx] == 3 {
   booru_fid_copyright["danbooru_manual_walfie"][$1] = tags[1];
 }
 function register_tag(tag, booru, fid, cat) {
+  # Danbooru .mp4s have tags like aqua_background
+  # but we mapped all .mp4s to transparent gifs
+  # so we need to strip any mention of a coloured background
+  is_background_tag = match(tag, /^(.+)_background$/, bgd_match);
+  if (is_background_tag) {
+    switch (bgd_match[1]) {
+      case "simple":
+      case "transparent":
+        break;
+      default:
+        return;
+    }
+  }
   if (tag in booru_tags_to_ids[booru][cat]) {
     tag_id = booru_tags_to_ids[booru][cat][tag];
   } else {
     tag_id = booru_tag_id[booru]++;
     booru_tags_to_ids[booru][cat][tag] = tag_id;
-    tag_ids_to_cats[tag_id] = cat;
-    tag_ids_to_tags[tag_id] = tag;
+    booru_tag_ids_to_tags[booru][tag_id] = tag;
   }
   booru_fid_tag_ids[booru][fid][cat][tag_id] = 1;
 }
@@ -162,23 +174,29 @@ idx == 6 {
   booru_fid_md5[booru][fid] = $6;
 }
 END {
+  out_dir = "./out_seq/";
+  system("mkdir -p \"" out_dir "\"");
+  manifest_filename = out_dir "/manifest.txt";
+  printf "" > manifest_filename;
   for(booru in booru_fid_tag_ids) {
     for(fid in booru_fid_tag_ids[booru]) {
       filename = booru_fid_to_preferred_filename[booru][fid];
-      out_dir = "./out_seq/" filename ".dir";
-      system("mkdir -p \"" out_dir "\"");
-      out_nominal = out_dir "/" filename;
+      print filename > manifest_filename;
+      fid_out_dir = "./out_seq/" filename ".dir";
+      system("mkdir -p \"" fid_out_dir "\"");
+      system("cp \"./out/" filename "\" \"" fid_out_dir "/\"");
+      out_nominal = fid_out_dir "/" filename;
       all_filename = out_nominal ".all.txt";
+      printf "" > all_filename;
       frame_count = booru_fid_frame_count[booru][fid];
       if (frame_count) {
         printf frame_count > out_nominal ".frames.txt";
       }
-      printf "" > all_filename;
       for(cat in booru_fid_tag_ids[booru][fid]) {
         cat_filename = out_nominal "." tag_cat_to_cat_name[cat] ".txt";
         printf "" > cat_filename;
         for(tag_id in booru_fid_tag_ids[booru][fid][cat]) {
-          tag = tag_ids_to_tags[tag_id];
+          tag = booru_tag_ids_to_tags[booru][tag_id];
           print tag >> cat_filename;
           print tag >> all_filename;
         }

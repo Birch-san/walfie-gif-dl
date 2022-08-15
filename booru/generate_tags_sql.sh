@@ -53,13 +53,25 @@ idx < 4 && file_idx_to_tag_cat[idx] == 3 {
   booru_fid_copyright["danbooru_manual_walfie"][$1] = tags[1];
 }
 function register_tag(tag, booru, fid, cat) {
+  # Danbooru .mp4s have tags like aqua_background
+  # but we mapped all .mp4s to transparent gifs
+  # so we need to strip any mention of a coloured background
+  is_background_tag = match(tag, /^(.+)_background$/, bgd_match);
+  if (is_background_tag) {
+    switch (bgd_match[1]) {
+      case "simple":
+      case "transparent":
+        break;
+      default:
+        return;
+    }
+  }
   if (tag in booru_tags_to_ids[booru][cat]) {
     tag_id = booru_tags_to_ids[booru][cat][tag];
   } else {
     tag_id = booru_tag_id[booru]++;
     booru_tags_to_ids[booru][cat][tag] = tag_id;
-    tag_ids_to_cats[tag_id] = cat;
-    tag_ids_to_tags[tag_id] = tag;
+    booru_tag_ids_to_tags[booru][tag_id] = tag;
   }
   booru_fid_tag_ids[booru][fid][cat][tag_id] = 1;
 }
@@ -168,7 +180,7 @@ idx == 7 {
 }
 END {
   for(booru in booru_fid_tag_ids) {
-    print "insert into files (booru, fid, shard, file_name, torr_md5, orig_ext, orig_md5, file_size, img_size_torr, jq, torr_path, tags_copyr, tags_char, tags_artist) values";
+    print "insert into files (booru, fid, shard, file_name, torr_md5, orig_ext, orig_md5, file_size, width, height, jq, torr_path, tags_copyr, tags_char, tags_artist) values";
     first_file = 1;
     for(fid in booru_fid_tag_ids[booru]) {
       if (!first_file) {
@@ -181,7 +193,7 @@ END {
       file_size = booru_fid_filesize[booru][fid];
       width = booru_fid_width[booru][fid];
       height = booru_fid_height[booru][fid];
-      printf "  (\"%s\", %d, \"manual_walfie_0\", \"%s\", \"%s\", \"%s\", \"%s\", %d, \"%dx%d\", 100, \"walfie\", \"hololive+nijisanji\", \"various\", \"walfie\")", booru, fid, filename, md5, extension, md5, file_size, width, height;
+      printf "  (\"%s\", %d, \"manual_walfie_0\", \"%s\", \"%s\", \"%s\", \"%s\", %d, %d, %d, 100, \"walfie\", \"hololive+nijisanji\", \"various\", \"walfie\")", booru, fid, filename, md5, extension, md5, file_size, width, height;
     }
     print ";";
     for(fid in booru_fid_tag_ids[booru]) {
@@ -193,10 +205,9 @@ END {
             printf ",\n"
           }
           is_first = 0;
-          tag = tag_ids_to_tags[tag_id];
-          tag_cat = tag_ids_to_cats[tag_id];
-          danbooru_fr = (tag_cat == 0 || tag_cat == 1) ? generic_booru_fr[tag_cat] : booru_fid_copyright[booru][fid];
-          printf "  (\"%s\", %d, \"%s\", %d, %d, \"%s\")", booru, fid, tag, tag_id, tag_cat, danbooru_fr;
+          tag = booru_tag_ids_to_tags[booru][tag_id];
+          danbooru_fr = (cat == 0 || cat == 1) ? generic_booru_fr[cat] : booru_fid_copyright[booru][fid];
+          printf "  (\"%s\", %d, \"%s\", %d, %d, \"%s\")", booru, fid, tag, tag_id, cat, danbooru_fr;
         }
       }
       print ";";

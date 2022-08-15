@@ -215,9 +215,9 @@ END {
   }
   printf "create temp table cnt as with recursive\n\
   cnt_cte(x) as (\n\
-     select 0\n\
-     union all\n\
-     select x+1 from cnt_cte\n\
+    select 0\n\
+    union all\n\
+    select x+1 from cnt_cte\n\
       limit %d\n\
   )\n\
 select x from cnt_cte;\n\

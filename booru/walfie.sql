@@ -3241,9 +3241,9 @@ insert into tags (booru, fid, tag, tag_id, tag_cat, danb_fr) values
   ("nobooru_manual_walfie", 37, "smol_ina", 122, 4, "hololive+nijisanji");
 create temp table cnt as with recursive
   cnt_cte(x) as (
-     select 0
-     union all
-     select x+1 from cnt_cte
+    select 0
+    union all
+    select x+1 from cnt_cte
       limit 69
   )
 select x from cnt_cte;

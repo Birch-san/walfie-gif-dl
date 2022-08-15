@@ -180,7 +180,7 @@ idx == 7 {
 }
 END {
   for(booru in booru_fid_tag_ids) {
-    print "insert into files (booru, fid, shard, file_name, torr_md5, orig_ext, orig_md5, file_size, width, height, jq, torr_path, tags_copyr, tags_char, tags_artist) values";
+    print "insert into files (booru, fid, shard, file_name, torr_md5, orig_ext, orig_md5, file_size, img_width_torr, img_height_torr, jq, torr_path, tags_copyr, tags_char, tags_artist) values";
     first_file = 1;
     for(fid in booru_fid_tag_ids[booru]) {
       if (!first_file) {

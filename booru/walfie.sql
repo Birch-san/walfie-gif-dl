@@ -1,4 +1,4 @@
-insert into files (booru, fid, shard, file_name, torr_md5, orig_ext, orig_md5, file_size, width, height, jq, torr_path, tags_copyr, tags_char, tags_artist) values
+insert into files (booru, fid, shard, file_name, torr_md5, orig_ext, orig_md5, file_size, img_width_torr, img_height_torr, jq, torr_path, tags_copyr, tags_char, tags_artist) values
   ("danbooru_manual_walfie", 4201501, "manual_walfie_0", "4201501.jpg", "800138d10714a8023b782ccf400bc70c", "jpg", "800138d10714a8023b782ccf400bc70c", 344559, 1584, 1536, 100, "walfie", "hololive+nijisanji", "various", "walfie"),
   ("danbooru_manual_walfie", 4534928, "manual_walfie_0", "cyclone.gif", "1657323e31cdbb47032fc24f39b8475c", "gif", "1657323e31cdbb47032fc24f39b8475c", 133467, 830, 1000, 100, "walfie", "hololive+nijisanji", "various", "walfie"),
   ("danbooru_manual_walfie", 4356655, "manual_walfie_0", "pogo.gif", "9c3e9b7e0008b8fa30435d18b0011ab2", "gif", "9c3e9b7e0008b8fa30435d18b0011ab2", 140274, 914, 1280, 100, "walfie", "hololive+nijisanji", "various", "walfie"),
@@ -2225,7 +2225,7 @@ insert into tags (booru, fid, tag, tag_id, tag_cat, danb_fr) values
   ("danbooru_manual_walfie", 5429685, "elira_pendora", 419, 4, "nijisanji"),
   ("danbooru_manual_walfie", 5429685, "finana_ryugu", 420, 4, "nijisanji"),
   ("danbooru_manual_walfie", 5429685, "pomu_rainpuff", 421, 4, "nijisanji");
-insert into files (booru, fid, shard, file_name, torr_md5, orig_ext, orig_md5, file_size, width, height, jq, torr_path, tags_copyr, tags_char, tags_artist) values
+insert into files (booru, fid, shard, file_name, torr_md5, orig_ext, orig_md5, file_size, img_width_torr, img_height_torr, jq, torr_path, tags_copyr, tags_char, tags_artist) values
   ("nobooru_manual_walfie", 0, "manual_walfie_0", "Ame_Birthday_2022.gif", "531b48c2b7b6e1653c215dae4d86e3c5", "gif", "531b48c2b7b6e1653c215dae4d86e3c5", 625843, 720, 880, 100, "walfie", "hololive+nijisanji", "various", "walfie"),
   ("nobooru_manual_walfie", 1, "manual_walfie_0", "apex.gif", "904b07c3e53d43ba8e76bf20763cf65d", "gif", "904b07c3e53d43ba8e76bf20763cf65d", 166482, 1250, 900, 100, "walfie", "hololive+nijisanji", "various", "walfie"),
   ("nobooru_manual_walfie", 2, "manual_walfie_0", "axeson.gif", "b148cd60c91dcf6ab6a15742cd8b4e21", "gif", "b148cd60c91dcf6ab6a15742cd8b4e21", 263995, 1000, 1000, 100, "walfie", "hololive+nijisanji", "various", "walfie"),
